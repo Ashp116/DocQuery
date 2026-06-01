@@ -2,28 +2,36 @@ import torch
 import torch.nn as nn
 from transformers import AutoModel
 
-
 class DocVLMEncoder(nn.Module):
-    def __init__(self, num_queries: int = 64, ocr_model_name: str = "microsoft/layoutmv3-base", qwen_hidden_dim: int = 3584):
+    def __init__(
+        self,
+        num_queries: int = 64,
+        ocr_model_name: str = "microsoft/layoutlmv3-base",
+        qwen_hidden_dim: int = 3584,
+    ):
         super().__init__()
 
-        self.ocr_reader = AutoModel.from_pretrained(ocr_model_name)
-        ocr_hidden_dim = self.ocr_reader.config.hidden_size
-
+        self.ocr_encoder = AutoModel.from_pretrained(ocr_model_name)
+        ocr_hidden_dim = self.ocr_encoder.config.hidden_size  # 768
 
         self.learnable_queries = nn.Parameter(
-            torch.randn(num_queries, ocr_hidden_dim) * 0.02
+            torch.randn(num_queries, ocr_hidden_dim) * 0.002
+        )
+
+        self.cross_attn = nn.MultiheadAttention(
+            embed_dim=ocr_hidden_dim,
+            num_heads=8,
+            batch_first=True,
         )
 
         self.projection = nn.Sequential(
             nn.LayerNorm(ocr_hidden_dim),
             nn.Linear(ocr_hidden_dim, qwen_hidden_dim),
             nn.GELU(),
-            nn.Linear(qwen_hidden_dim, ocr_hidden_dim)
+            nn.Linear(qwen_hidden_dim, qwen_hidden_dim),
         )
 
         self.num_queries = num_queries
-
 
     def forward(self, input_ids, attention_mask, bbox):
         B = input_ids.shape[0]
@@ -31,24 +39,19 @@ class DocVLMEncoder(nn.Module):
         ocr_out = self.ocr_encoder(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            bbox=bbox
+            bbox=bbox,
         ).last_hidden_state
-
 
         queries = self.learnable_queries.unsqueeze(0).expand(B, -1, -1)
 
-        combined = torch.cat([ocr_out, queries], dim=1)
+        key_padding_mask = (attention_mask == 0)  
+        compressed, _ = self.cross_attn(
+            query=queries,
+            key=ocr_out,
+            value=ocr_out,
+            key_padding_mask=key_padding_mask,
+        )
 
-        query_mask = torch.ones(B, self.num_queries, device=input_ids.device)
-        extended_mask = torch.cat([attention_mask, query_mask], dim=1)
+        projected = self.projection(compressed)
 
-        compressed = self.ocr_reader(
-            inputs_embeds=combined,
-            attention_mask=extended_mask,
-        ).last_hidden_state
-
-        compressed_queries = compressed[:, -self.num_queries, :]
-
-        projected = self.projection(compressed_queries)
-        
-        return projected
+        return projected.to(torch.bfloat16)

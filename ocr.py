@@ -3,7 +3,7 @@ import torch
 from PIL import Image
 from transformers import AutoTokenizer
 
-reader = easyocr.Reader(['en'], gpu=True)
+reader = easyocr.Reader(['en'], gpu=False)
 ocr_tokenizer = AutoTokenizer.from_pretrained("microsoft/layoutlmv3-base")
 
 def extract_ocr(image_path: str, max_length: int = 512):
@@ -41,11 +41,21 @@ def extract_ocr(image_path: str, max_length: int = 512):
     encoding = ocr_tokenizer(
         words,
         boxes=boxes,
-        max_length=max_length,
+        max_length=256,
         padding="max_length",
         truncation=True,
         return_tensors="pt",
-        is_split_into_words=True,
     )
+
+     # Force bbox to always be (1, seq_len, 4)
+    bbox = encoding["bbox"]
+    if bbox.dim() == 2:
+        pass  # already (seq_len, 4) — correct
+    elif bbox.dim() == 3:
+        bbox = bbox.squeeze(0)  # remove extra dim if (1, seq_len, 4)
+
+    # Verify shape is exactly (max_length, 4)
+    assert bbox.shape == (256, 4), f"Unexpected bbox shape: {bbox.shape}"
+    encoding["bbox"] = bbox
 
     return encoding

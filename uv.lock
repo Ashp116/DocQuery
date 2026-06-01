@@ -405,6 +405,7 @@ dependencies = [
     { name = "pillow" },
     { name = "qwen-vl-utils" },
     { name = "tokenizers" },
+    { name = "tqdm" },
     { name = "transformers" },
     { name = "trl" },
 ]
@@ -423,6 +424,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=12.2.0" },
     { name = "qwen-vl-utils", specifier = ">=0.0.14" },
     { name = "tokenizers", specifier = ">=0.20.3" },
+    { name = "tqdm", specifier = ">=4.67.3" },
     { name = "transformers", specifier = "==4.45.0" },
     { name = "trl", specifier = ">=0.12.2" },
 ]

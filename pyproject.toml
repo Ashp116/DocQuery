@@ -17,6 +17,7 @@ dependencies = [
     "pillow>=12.2.0",
     "qwen-vl-utils>=0.0.14",
     "tokenizers>=0.20.3",
+    "tqdm>=4.67.3",
     "transformers==4.45.0",
     "trl>=0.12.2",
 ]
