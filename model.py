@@ -15,7 +15,7 @@ class DocVLM(nn.Module):
             ocr_input_ids,
             ocr_attention_mask,
             bbox,
-        ).to(torch.float16)
+        )
 
         with torch.no_grad():
             text_embeds = self.qwen.model.embed_tokens(input_ids)

@@ -73,9 +73,9 @@ def train():
     )
 
     optimizer = AdamW([
-        {"params": encoder.learnable_queries,        "lr": 1e-6},
-        {"params": encoder.projection.parameters(),  "lr": 1e-6},
-        {"params": encoder.ocr_encoder.parameters(), "lr": 1e-7},
+        {"params": encoder.learnable_queries,        "lr": 1e-5},
+        {"params": encoder.projection.parameters(),  "lr": 1e-4},
+        {"params": encoder.ocr_encoder.parameters(), "lr": 1e-5},
     ], weight_decay=0.01)
 
     scheduler = get_cosine_schedule_with_warmup(
@@ -83,9 +83,6 @@ def train():
         num_warmup_steps=1000,
         num_training_steps=140_000,
     )
-
-    scaler = torch.amp.GradScaler()
-
 
     for p in encoder.ocr_encoder.parameters():
         p.requires_grad = False
@@ -120,11 +117,9 @@ def train():
                 step += 1
                 continue
         
-        scaler.scale(loss).backward()
-        scaler.unscale_(optimizer)
+        loss.backward()
         torch.nn.utils.clip_grad_norm_(encoder.parameters(), 1.0)
-        scaler.step(optimizer)
-        scaler.update()
+        optimizer.step()
         optimizer.zero_grad()
         scheduler.step()
 

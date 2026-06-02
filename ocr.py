@@ -3,7 +3,7 @@ import torch
 from PIL import Image
 from transformers import AutoTokenizer
 
-reader = easyocr.Reader(['en'], gpu=False)
+reader = easyocr.Reader(['en'], gpu=True)
 ocr_tokenizer = AutoTokenizer.from_pretrained("microsoft/layoutlmv3-base")
 
 def extract_ocr(image_path: str, max_length: int = 512):
@@ -16,13 +16,13 @@ def extract_ocr(image_path: str, max_length: int = 512):
     boxes = []
 
     for (bbox_pts, text, conf) in results:
-        if conf < 0.3 or text.strip():
+        if conf < 0.3 or not text.strip():
             continue
 
         xs = [p[0] for p in bbox_pts]
         ys = [p[1] for p in bbox_pts]
         x0, y0 = min(xs), min(ys)
-        x1, y1 = max(xs), min(ys)
+        x1, y1 = max(xs), max(ys)
 
 
         norm_box = [
