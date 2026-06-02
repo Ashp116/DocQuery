@@ -16,7 +16,7 @@ from train_dataset import DocVQADataset , collate_fn
 warnings.filterwarnings("ignore", category=FutureWarning)
 hf_logging.set_verbosity_error()
 
-def load_qwen(quantize=True):
+def load_qwen(quantize=False):
     cfg = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_compute_dtype=torch.float16,
