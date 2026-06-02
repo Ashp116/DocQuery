@@ -1,3 +1,10 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["encoder", "model", "ocr", "train", "train_dataset", "main"]
+
 [project]
 name = "doc-query"
 version = "0.1.0"
