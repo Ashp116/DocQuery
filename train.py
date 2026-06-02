@@ -31,10 +31,6 @@ def load_qwen(quantize=True):
         torch_dtype=torch.float16,
         device_map="auto",
         low_cpu_mem_usage=True,
-        max_memory={
-            0: "10GiB",   # GPU gets 10GB
-            "cpu": "32GiB"  # rest spills to CPU RAM
-        }
     )
 
     for param in model.parameters():
