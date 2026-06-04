@@ -66,6 +66,7 @@ def train():
         num_workers=4,
         pin_memory=True,
         collate_fn=collate_fn,
+        multiprocessing_context='spawn',
     )
 
     optimizer = AdamW([
