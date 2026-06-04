@@ -26,10 +26,10 @@ def extract_ocr(image_path: str, max_length: int = 512):
 
 
         norm_box = [
-            int(x0 / W * 1000),
-            int(y0 / H * 1000),
-            int(x1 / W * 1000),
-            int(y1 / H * 1000),
+            max(0, min(1000, int(x0 / W * 1000))),
+            max(0, min(1000, int(y0 / H * 1000))),
+            max(0, min(1000, int(x1 / W * 1000))),
+            max(0, min(1000, int(y1 / H * 1000))),
         ]
         words.append(text)
         boxes.append(norm_box)

@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from encoder import DocVLMEncoder
 from model import DocVLM
-from train_dataset import DocVQADataset , collate_fn
+from train_dataset import DocVQADataset, collate_fn, precache_ocr
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 hf_logging.set_verbosity_error()
@@ -59,6 +59,7 @@ def train():
     docvlm = DocVLM(qwen, encoder)
 
     dataset = DocVQADataset(processor, split="train")
+    precache_ocr(dataset)
     dataloader = DataLoader(
         dataset,
         batch_size=8,
