@@ -61,17 +61,17 @@ def train():
     dataset = DocVQADataset(processor, split="train")
     dataloader = DataLoader(
         dataset,
-        batch_size=1,
+        batch_size=32,
         shuffle=True,
-        num_workers=0,
-        pin_memory=False,
+        num_workers=4,
+        pin_memory=True,
         collate_fn=collate_fn,
     )
 
     optimizer = AdamW([
-        {"params": encoder.learnable_queries,        "lr": 1e-5},
-        {"params": encoder.projection.parameters(),  "lr": 1e-4},
-        {"params": encoder.ocr_encoder.parameters(), "lr": 1e-5},
+        {"params": encoder.learnable_queries,        "lr": 3e-4},
+        {"params": encoder.projection.parameters(),  "lr": 3e-4},
+        {"params": encoder.ocr_encoder.parameters(), "lr": 1e-4},
     ], weight_decay=0.01)
 
     scheduler = get_cosine_schedule_with_warmup(
