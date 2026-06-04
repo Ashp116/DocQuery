@@ -3,7 +3,7 @@ import torch
 from PIL import Image
 from transformers import AutoTokenizer
 
-reader = easyocr.Reader(['en'], gpu=True)
+reader = easyocr.Reader(['en'], gpu=False)
 ocr_tokenizer = AutoTokenizer.from_pretrained("microsoft/layoutlmv3-base")
 
 def extract_ocr(image_path: str, max_length: int = 512):
