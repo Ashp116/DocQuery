@@ -61,7 +61,7 @@ def train():
     dataset = DocVQADataset(processor, split="train")
     dataloader = DataLoader(
         dataset,
-        batch_size=32,
+        batch_size=8,
         shuffle=True,
         num_workers=4,
         pin_memory=True,
