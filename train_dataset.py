@@ -47,10 +47,8 @@ def precache_ocr(dataset, num_samples=None):
         if os.path.exists(cache_path):
             continue
         try:
-            sample = dataset.data[idx]
-            tmp = f"/tmp/docvlm_{idx}.jpg"
-            sample["image"].save(tmp)
-            ocr = extract_ocr(tmp, max_length=dataset.max_ocr_length)
+            image = dataset.data[idx]["image"]
+            ocr = extract_ocr(image, max_length=dataset.max_ocr_length)
             with open(cache_path, "wb") as f:
                 pickle.dump(ocr, f)
         except Exception as e:
@@ -83,9 +81,7 @@ class DocVQADataset(Dataset):
                 ocr = pickle.load(f)
             ocr["bbox"] = ocr["bbox"].clamp(0, 1000)
         else:
-            tmp = f"/tmp/docvlm_{idx}.jpg"
-            image.save(tmp)
-            ocr = extract_ocr(tmp, max_length=self.max_ocr_length)
+            ocr = extract_ocr(image, max_length=self.max_ocr_length)
             with open(cache_path, "wb") as f:
                 pickle.dump(ocr, f)
 
@@ -175,9 +171,7 @@ class DocVQADatasetV2(Dataset):
                 ocr = pickle.load(f)
             ocr["bbox"] = ocr["bbox"].clamp(0, 1000)
         else:
-            tmp = f"/tmp/docvlm_{idx}.jpg"
-            image.save(tmp)
-            ocr = extract_ocr(tmp, max_length=self.max_ocr_length)
+            ocr = extract_ocr(image, max_length=self.max_ocr_length)
             with open(cache_path, "wb") as f:
                 pickle.dump(ocr, f)
 
