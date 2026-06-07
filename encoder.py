@@ -54,4 +54,4 @@ class DocVLMEncoder(nn.Module):
 
         projected = self.projection(compressed)
 
-        return projected.to(torch.bfloat16)
+        return projected

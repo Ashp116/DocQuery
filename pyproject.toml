@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["encoder", "model", "ocr", "train", "train_dataset", "main"]
+py-modules = ["encoder", "model", "ocr", "train", "train_dataset", "train_stage2", "infer", "main"]
 
 [project]
 name = "doc-query"
