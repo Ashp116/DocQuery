@@ -36,7 +36,7 @@ def load_qwen():
     return model, processor
 
 
-def train_stage2():
+def train_stage2(ocr_cache_dir=None):
     torch.cuda.empty_cache()
     gc.collect()
     os.makedirs("checkpoints", exist_ok=True)
@@ -58,7 +58,7 @@ def train_stage2():
 
     docvlm = DocVLM(qwen, encoder)
 
-    dataset = DocVQADatasetV2(processor, split="train")
+    dataset = DocVQADatasetV2(processor, split="train", ocr_cache_dir=ocr_cache_dir)
     precache_ocr(dataset)
 
     dataloader = DataLoader(

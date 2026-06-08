@@ -44,12 +44,12 @@ def load_qwen(quantize=False):
 
     return model, processor
 
-def train():
+def train(ocr_cache_dir=None):
     torch.cuda.empty_cache()
     gc.collect()
 
     qwen, processor = load_qwen()
-    
+
     encoder = DocVLMEncoder(
         num_queries=64,
         qwen_hidden_dim=qwen.config.hidden_size,
@@ -58,7 +58,7 @@ def train():
 
     docvlm = DocVLM(qwen, encoder)
 
-    dataset = DocVQADataset(processor, split="train")
+    dataset = DocVQADataset(processor, split="train", ocr_cache_dir=ocr_cache_dir)
     precache_ocr(dataset)
     dataloader = DataLoader(
         dataset,

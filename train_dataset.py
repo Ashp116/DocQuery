@@ -56,14 +56,14 @@ def precache_ocr(dataset, num_samples=None):
 
 
 class DocVQADataset(Dataset):
-    def __init__(self, processor, split="train", max_ocr_length=512):
+    def __init__(self, processor, split="train", max_ocr_length=512, ocr_cache_dir=None):
         self.data = load_dataset(
             "HuggingFaceM4/DocumentVQA",
             split=split
         )
         self.processor = processor
         self.max_ocr_length = max_ocr_length
-        self.cache_dir = f"/tmp/docvqa_ocr_cache_{split}"
+        self.cache_dir = ocr_cache_dir or os.path.join(os.path.dirname(os.path.abspath(__file__)), "ocr_cache", split)
         os.makedirs(self.cache_dir, exist_ok=True)
 
     def __len__(self):
@@ -149,11 +149,11 @@ def collate_fn_v2(batch):
 
 
 class DocVQADatasetV2(Dataset):
-    def __init__(self, processor, split="train", max_ocr_length=512):
+    def __init__(self, processor, split="train", max_ocr_length=512, ocr_cache_dir=None):
         self.data = load_dataset("HuggingFaceM4/DocumentVQA", split=split)
         self.processor = processor
         self.max_ocr_length = max_ocr_length
-        self.cache_dir = f"/tmp/docvqa_ocr_cache_{split}"
+        self.cache_dir = ocr_cache_dir or os.path.join(os.path.dirname(os.path.abspath(__file__)), "ocr_cache", split)
         os.makedirs(self.cache_dir, exist_ok=True)
 
     def __len__(self):
