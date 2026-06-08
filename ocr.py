@@ -1,13 +1,19 @@
 import easyocr
 import numpy as np
-import torch
 from PIL import Image
 from transformers import AutoTokenizer
 
-reader = easyocr.Reader(['en'], gpu=True)
 ocr_tokenizer = AutoTokenizer.from_pretrained("microsoft/layoutlmv3-base")
 
 _MAX_OCR_SIDE = 1024  # resize before OCR; saves ~50% detection time on large doc images
+_reader = None
+
+
+def _get_reader():
+    global _reader
+    if _reader is None:
+        _reader = easyocr.Reader(['en'], gpu=True)
+    return _reader
 
 
 def extract_ocr(image_or_path, max_length: int = 512):
@@ -24,7 +30,7 @@ def extract_ocr(image_or_path, max_length: int = 512):
 
     # Pass numpy array so EasyOCR skips its own disk read.
     # batch_size=4 speeds up the recognition phase on batched crops.
-    results = reader.readtext(np.array(img), batch_size=4)
+    results = _get_reader().readtext(np.array(img), batch_size=4)
 
     words = []
     boxes = []
@@ -54,7 +60,7 @@ def extract_ocr(image_or_path, max_length: int = 512):
     encoding = ocr_tokenizer(
         words,
         boxes=boxes,
-        max_length=256,
+        max_length=max_length,
         padding="max_length",
         truncation=True,
         return_tensors="pt",
@@ -64,7 +70,7 @@ def extract_ocr(image_or_path, max_length: int = 512):
     if bbox.dim() == 3:
         bbox = bbox.squeeze(0)
 
-    assert bbox.shape == (256, 4), f"Unexpected bbox shape: {bbox.shape}"
+    assert bbox.shape == (max_length, 4), f"Unexpected bbox shape: {bbox.shape}"
     encoding["bbox"] = bbox
 
     return encoding
