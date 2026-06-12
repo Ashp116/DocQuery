@@ -88,7 +88,8 @@ def train(ocr_cache_dir=None):
     step = 0
     docvlm.train()
 
-    for batch in tqdm(dataloader, desc=f"Stage 1", total=140_000):
+    pbar = tqdm(dataloader, desc="Stage 1", total=140_000)
+    for batch in pbar:
         if step == 10_000:
             print("Unfreezing OCR encoder")
             for p in encoder.ocr_encoder.parameters():
@@ -110,18 +111,17 @@ def train(ocr_cache_dir=None):
             loss = outputs.loss
 
             if torch.isnan(loss):
-                print("NaN loss detected, skipping step")
                 optimizer.zero_grad()
                 step += 1
                 continue
-        
+
         loss.backward()
         torch.nn.utils.clip_grad_norm_(encoder.parameters(), 1.0)
         optimizer.step()
         optimizer.zero_grad()
         scheduler.step()
 
-        tqdm.write(f"Step {step} | Loss: {loss.item():.4f}")
+        pbar.set_postfix(loss=f"{loss.item():.4f}", step=step)
 
         if step % 5_000 == 0 and step > 0:
             torch.save({

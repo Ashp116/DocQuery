@@ -86,7 +86,8 @@ def train_stage2(ocr_cache_dir=None):
     docvlm.train()
     qwen.eval()  # Qwen is frozen — eval keeps attention deterministic
 
-    for batch in tqdm(dataloader, desc="Stage 2", total=100_000):
+    pbar = tqdm(dataloader, desc="Stage 2", total=100_000)
+    for batch in pbar:
         batch = {k: v.cuda() for k, v in batch.items()}
 
         with torch.amp.autocast("cuda", dtype=torch.float16):
@@ -113,8 +114,7 @@ def train_stage2(ocr_cache_dir=None):
         optimizer.zero_grad()
         scheduler.step()
 
-        if step % 100 == 0:
-            tqdm.write(f"Step {step} | Loss: {loss.item():.4f}")
+        pbar.set_postfix(loss=f"{loss.item():.4f}", step=step)
 
         if step % 5_000 == 0 and step > 0:
             torch.save({
