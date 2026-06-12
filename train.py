@@ -3,6 +3,7 @@ import warnings
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
+from torch.utils.tensorboard import SummaryWriter
 from transformers import get_cosine_schedule_with_warmup, BitsAndBytesConfig
 from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 from transformers import logging as hf_logging
@@ -87,6 +88,7 @@ def train(ocr_cache_dir=None):
 
     step = 0
     docvlm.train()
+    writer = SummaryWriter(log_dir="runs/stage1")
 
     pbar = tqdm(dataloader, desc="Stage 1", total=140_000)
     for batch in pbar:
@@ -122,6 +124,7 @@ def train(ocr_cache_dir=None):
         scheduler.step()
 
         pbar.set_postfix(loss=f"{loss.item():.4f}", step=step)
+        writer.add_scalar("Loss/train", loss.item(), step)
 
         if step % 5_000 == 0 and step > 0:
             torch.save({
@@ -142,6 +145,7 @@ def train(ocr_cache_dir=None):
         "projection": encoder.projection.state_dict(),
         "ocr_encoder": encoder.ocr_encoder.state_dict(),
     }, "checkpoints/stage1_final.pt")
+    writer.close()
     print("Stage 1 done")
 
 

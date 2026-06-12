@@ -5,6 +5,7 @@ import os
 import gc
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
+from torch.utils.tensorboard import SummaryWriter
 from transformers import get_cosine_schedule_with_warmup
 from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 from transformers import logging as hf_logging
@@ -85,6 +86,7 @@ def train_stage2(ocr_cache_dir=None):
     step = 0
     docvlm.train()
     qwen.eval()  # Qwen is frozen — eval keeps attention deterministic
+    writer = SummaryWriter(log_dir="runs/stage2")
 
     pbar = tqdm(dataloader, desc="Stage 2", total=100_000)
     for batch in pbar:
@@ -115,6 +117,7 @@ def train_stage2(ocr_cache_dir=None):
         scheduler.step()
 
         pbar.set_postfix(loss=f"{loss.item():.4f}", step=step)
+        writer.add_scalar("Loss/train", loss.item(), step)
 
         if step % 5_000 == 0 and step > 0:
             torch.save({
@@ -134,6 +137,7 @@ def train_stage2(ocr_cache_dir=None):
         "projection": encoder.projection.state_dict(),
         "ocr_encoder": encoder.ocr_encoder.state_dict(),
     }, "checkpoints/stage2_final.pt")
+    writer.close()
     print("Stage 2 done")
 
 
