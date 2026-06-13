@@ -90,53 +90,57 @@ def train(ocr_cache_dir=None):
     docvlm.train()
     writer = SummaryWriter(log_dir="runs/stage1")
 
-    pbar = tqdm(dataloader, desc="Stage 1", total=140_000)
-    for batch in pbar:
-        if step == 10_000:
-            print("Unfreezing OCR encoder")
-            for p in encoder.ocr_encoder.parameters():
-                p.requires_grad = True
+    pbar = tqdm(total=140_000, desc="Stage 1")
+    while step < 140_000:
+        for batch in dataloader:
+            if step == 10_000:
+                print("Unfreezing OCR encoder")
+                for p in encoder.ocr_encoder.parameters():
+                    p.requires_grad = True
 
-        batch = {k: v.cuda() for k,v in batch.items()}
+            batch = {k: v.cuda() for k,v in batch.items()}
 
-        with torch.amp.autocast('cuda', dtype=torch.bfloat16):
-            outputs = docvlm(
-                ocr_input_ids=batch["ocr_input_ids"],
-                ocr_attention_mask=batch["ocr_attention_mask"],
-                bbox=batch["bbox"],
-                input_ids=batch["input_ids"],
-                attention_mask=batch["attention_mask"],
-                labels=batch["labels"],
-                pixel_values=None
-            )
+            with torch.amp.autocast('cuda', dtype=torch.bfloat16):
+                outputs = docvlm(
+                    ocr_input_ids=batch["ocr_input_ids"],
+                    ocr_attention_mask=batch["ocr_attention_mask"],
+                    bbox=batch["bbox"],
+                    input_ids=batch["input_ids"],
+                    attention_mask=batch["attention_mask"],
+                    labels=batch["labels"],
+                    pixel_values=None
+                )
 
-            loss = outputs.loss
+                loss = outputs.loss
 
-            if torch.isnan(loss):
-                optimizer.zero_grad()
-                step += 1
-                continue
+                if torch.isnan(loss):
+                    optimizer.zero_grad()
+                    step += 1
+                    pbar.update(1)
+                    continue
 
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(encoder.parameters(), 1.0)
-        optimizer.step()
-        optimizer.zero_grad()
-        scheduler.step()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(encoder.parameters(), 1.0)
+            optimizer.step()
+            optimizer.zero_grad()
+            scheduler.step()
 
-        pbar.set_postfix(loss=f"{loss.item():.4f}", step=step)
-        writer.add_scalar("Loss/train", loss.item(), step)
+            pbar.set_postfix(loss=f"{loss.item():.4f}", step=step)
+            pbar.update(1)
+            writer.add_scalar("Loss/train", loss.item(), step)
 
-        if step % 5_000 == 0 and step > 0:
-            torch.save({
-                "step": step,
-                "learnable_queries": encoder.learnable_queries,
-                "projection": encoder.projection.state_dict(),
-                "ocr_encoder": encoder.ocr_encoder.state_dict(),
-            }, f"checkpoints/stage1_step{step}.pt")
+            if step % 5_000 == 0 and step > 0:
+                torch.save({
+                    "step": step,
+                    "learnable_queries": encoder.learnable_queries,
+                    "projection": encoder.projection.state_dict(),
+                    "ocr_encoder": encoder.ocr_encoder.state_dict(),
+                }, f"checkpoints/stage1_step{step}.pt")
 
-        step += 1
-        if step >= 140_000:
-            break
+            step += 1
+            if step >= 140_000:
+                break
+    pbar.close()
 
     # Save final stage 1
     torch.save({
