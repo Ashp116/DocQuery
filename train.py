@@ -86,6 +86,14 @@ def train(ocr_cache_dir=None):
     for p in encoder.ocr_encoder.parameters():
         p.requires_grad = False
 
+    # Verify label/input_ids alignment on first batch before starting.
+    _probe = next(iter(dataloader))
+    assert _probe["input_ids"].shape == _probe["labels"].shape, (
+        f"First batch shape mismatch: input_ids {_probe['input_ids'].shape} vs labels {_probe['labels'].shape}"
+    )
+    print(f"First batch shapes OK — input_ids/labels: {tuple(_probe['input_ids'].shape)}")
+    del _probe
+
     step = 0
     docvlm.train()
     writer = SummaryWriter(log_dir="runs/stage1")

@@ -35,16 +35,12 @@ class DocVLM(nn.Module):
         combined_mask = torch.cat([ocr_mask, attention_mask], dim=1)
 
         if labels is not None:
+            # labels from dataset already match input_ids shape (prompt+answer, -100 on prompt).
+            assert labels.shape == input_ids.shape, (
+                f"model.forward: labels {labels.shape} != input_ids {input_ids.shape}"
+            )
             ignore = torch.full((B, num_q), -100, device=labels.device, dtype=labels.dtype)
             labels = torch.cat([ignore, labels], dim=1)
-
-            text_len = input_ids.shape[1]
-            label_len = labels.shape[1] - num_q
-            if label_len < text_len:
-                pad = torch.full((B, text_len - label_len), -100, device=labels.device, dtype=labels.dtype)
-                labels = torch.cat([labels, pad], dim=1)
-            elif label_len > text_len:
-                labels = labels[:, :num_q + text_len]
 
         # pixel_values already merged into inputs_embeds — do not pass again.
         outputs = self.qwen(

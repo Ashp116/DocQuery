@@ -8,26 +8,24 @@ from tqdm import tqdm
 from qwen_vl_utils import process_vision_info
 from ocr import extract_ocr
 
+
 def collate_fn(batch):
     ocr_input_ids      = torch.stack([b["ocr_input_ids"] for b in batch])
     ocr_attention_mask = torch.stack([b["ocr_attention_mask"] for b in batch])
     bbox               = torch.stack([b["bbox"] for b in batch])
 
-    # Pad input_ids to same length within batch
     input_ids = torch.nn.utils.rnn.pad_sequence(
-        [b["input_ids"] for b in batch],
-        batch_first=True,
-        padding_value=0
+        [b["input_ids"] for b in batch], batch_first=True, padding_value=0
     )
     attention_mask = torch.nn.utils.rnn.pad_sequence(
-        [b["attention_mask"] for b in batch],
-        batch_first=True,
-        padding_value=0
+        [b["attention_mask"] for b in batch], batch_first=True, padding_value=0
     )
     labels = torch.nn.utils.rnn.pad_sequence(
-        [b["labels"] for b in batch],
-        batch_first=True,
-        padding_value=-100  # -100 is ignored by cross entropy loss
+        [b["labels"] for b in batch], batch_first=True, padding_value=-100
+    )
+
+    assert input_ids.shape == labels.shape, (
+        f"collate_fn shape mismatch: input_ids {input_ids.shape} vs labels {labels.shape}"
     )
 
     return {
@@ -57,10 +55,7 @@ def precache_ocr(dataset, num_samples=None):
 
 class DocVQADataset(Dataset):
     def __init__(self, processor, split="train", max_ocr_length=512, ocr_cache_dir=None):
-        self.data = load_dataset(
-            "HuggingFaceM4/DocumentVQA",
-            split=split
-        )
+        self.data = load_dataset("HuggingFaceM4/DocumentVQA", split=split)
         self.processor = processor
         self.max_ocr_length = max_ocr_length
         self.cache_dir = ocr_cache_dir or os.path.join(os.path.dirname(os.path.abspath(__file__)), "ocr_cache", split)
@@ -86,15 +81,14 @@ class DocVQADataset(Dataset):
                 pickle.dump(ocr, f)
 
         prompt = f"Question: {question}\nAnswer:"
-        text_enc = self.processor(
+        prompt_enc = self.processor(
             text=prompt,
             return_tensors="pt",
             truncation=True,
             max_length=128,
-            padding=False,   # no padding here, collate_fn handles it
+            padding=False,
         )
-
-        label_enc = self.processor(
+        answer_enc = self.processor(
             text=answer,
             return_tensors="pt",
             truncation=True,
@@ -102,13 +96,29 @@ class DocVQADataset(Dataset):
             padding=False,
         )
 
+        prompt_ids  = prompt_enc["input_ids"].squeeze(0)        # (prompt_len,)
+        prompt_mask = prompt_enc["attention_mask"].squeeze(0)   # (prompt_len,)
+        answer_ids  = answer_enc["input_ids"].squeeze(0)        # (answer_len,)
+
+        # Full input = prompt + answer; loss only on answer tokens.
+        input_ids      = torch.cat([prompt_ids, answer_ids])
+        attention_mask = torch.cat([prompt_mask, torch.ones_like(answer_ids)])
+        labels         = torch.cat([
+            torch.full_like(prompt_ids, -100),
+            answer_ids,
+        ])
+
+        assert labels.shape == input_ids.shape, (
+            f"__getitem__ shape mismatch: labels {labels.shape} vs input_ids {input_ids.shape}"
+        )
+
         return {
-            "ocr_input_ids": ocr["input_ids"].squeeze(0),
+            "ocr_input_ids":      ocr["input_ids"].squeeze(0),
             "ocr_attention_mask": ocr["attention_mask"].squeeze(0),
-            "bbox": ocr["bbox"].squeeze(0),
-            "input_ids": text_enc["input_ids"].squeeze(0),
-            "attention_mask": text_enc["attention_mask"].squeeze(0),
-            "labels": label_enc["input_ids"].squeeze(0)
+            "bbox":               ocr["bbox"].squeeze(0),
+            "input_ids":          input_ids,
+            "attention_mask":     attention_mask,
+            "labels":             labels,
         }
 
 
@@ -131,8 +141,10 @@ def collate_fn_v2(batch):
         [b["labels"] for b in batch], batch_first=True, padding_value=-100
     )
 
-    # Each image has a different patch count; cat along dim=0.
-    # image_grid_thw is (1, 3) per sample; cat gives (B, 3).
+    assert input_ids.shape == labels.shape, (
+        f"collate_fn_v2 shape mismatch: input_ids {input_ids.shape} vs labels {labels.shape}"
+    )
+
     pixel_values   = torch.cat([b["pixel_values"]   for b in batch], dim=0)
     image_grid_thw = torch.cat([b["image_grid_thw"] for b in batch], dim=0)
 
@@ -188,14 +200,13 @@ class DocVQADatasetV2(Dataset):
         prompt_text = self.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
-        text_enc = self.processor(
+        prompt_enc = self.processor(
             text=[prompt_text],
             images=image_inputs,
             return_tensors="pt",
             padding=False,
         )
-
-        label_enc = self.processor(
+        answer_enc = self.processor(
             text=answer,
             return_tensors="pt",
             truncation=True,
@@ -203,13 +214,28 @@ class DocVQADatasetV2(Dataset):
             padding=False,
         )
 
+        prompt_ids  = prompt_enc["input_ids"].squeeze(0)        # (prompt_len,) includes image tokens
+        prompt_mask = prompt_enc["attention_mask"].squeeze(0)
+        answer_ids  = answer_enc["input_ids"].squeeze(0)
+
+        input_ids      = torch.cat([prompt_ids, answer_ids])
+        attention_mask = torch.cat([prompt_mask, torch.ones_like(answer_ids)])
+        labels         = torch.cat([
+            torch.full_like(prompt_ids, -100),
+            answer_ids,
+        ])
+
+        assert labels.shape == input_ids.shape, (
+            f"__getitem__ shape mismatch: labels {labels.shape} vs input_ids {input_ids.shape}"
+        )
+
         return {
             "ocr_input_ids":      ocr["input_ids"].squeeze(0),
             "ocr_attention_mask": ocr["attention_mask"].squeeze(0),
             "bbox":               ocr["bbox"].squeeze(0),
-            "input_ids":          text_enc["input_ids"].squeeze(0),
-            "attention_mask":     text_enc["attention_mask"].squeeze(0),
-            "pixel_values":       text_enc["pixel_values"],       # (n_patches, patch_dim)
-            "image_grid_thw":     text_enc["image_grid_thw"],     # (1, 3)
-            "labels":             label_enc["input_ids"].squeeze(0),
+            "input_ids":          input_ids,
+            "attention_mask":     attention_mask,
+            "pixel_values":       prompt_enc["pixel_values"],    # (n_patches, patch_dim)
+            "image_grid_thw":     prompt_enc["image_grid_thw"],  # (1, 3)
+            "labels":             labels,
         }
